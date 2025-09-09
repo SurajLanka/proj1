@@ -1,0 +1,42 @@
+{% extends "base.html" %} {% block title %}Home - Instasnap{% endblock %} {%
+block content %}
+<div class="home-container">
+  <div class="hero">
+    <h1 class="app-title">
+      Welcome to <span class="highlight">Instasnap 🚀</span>
+    </h1>
+    <p class="subtitle">
+      Your space to share moments, connect with friends, and explore.
+    </p>
+  </div>
+
+  <div class="card action-card">
+    {% if not session.get('user_id') %}
+    <h2>Get Started</h2>
+    <p>
+      <a href="{{ url_for('signup') }}" class="btn btn-primary"
+        >Create an Account</a
+      >
+      <span class="or">or</span>
+      <a href="{{ url_for('login') }}" class="btn btn-secondary">Login</a>
+    </p>
+    {% else %}
+    <h2>Welcome back!</h2>
+    <p>
+      <a href="{{ url_for('feed') }}" class="btn btn-primary"
+        >Go to Your Feed →</a
+      >
+    </p>
+    {% endif %}
+  </div>
+
+  <div class="features">
+    <h3>Why Instasnap?</h3>
+    <ul>
+      <li>📸 Share photos, videos, and stories instantly</li>
+      <li>💬 Chat and stay connected with friends</li>
+      <li>🌍 Explore trending content worldwide</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}

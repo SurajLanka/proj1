@@ -1,0 +1,17 @@
+# Core framework
+Flask==3.1.1
+
+# Database ORM
+Flask-SQLAlchemy==3.1.1
+
+# Authentication management
+Flask-Login==0.6.3
+
+# WSGI utility (used internally by Flask)
+Werkzeug==3.0.4
+
+# Optional but recommended for migrations
+Flask-Migrate==4.0.7
+
+# Optional but recommended for managing env vars
+python-dotenv==1.0.1

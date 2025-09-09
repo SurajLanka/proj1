@@ -1,0 +1,41 @@
+{% extends "base.html" %} {% block title %}Feed - Instasnap{% endblock %} {%
+block content %}
+<div class="feed-container">
+  <h1 class="page-title">📲 Your Feed</h1>
+
+  <!-- Post Form -->
+  <div class="card create-post">
+    <h2 class="section-title">Create a Post</h2>
+    <form action="{{ url_for('feed') }}" method="POST">
+      <input
+        type="text"
+        name="author"
+        placeholder="Your name (optional)"
+        class="input"
+      />
+      <textarea
+        name="content"
+        rows="3"
+        placeholder="What's on your mind?"
+        required
+        class="input"
+      ></textarea>
+      <button type="submit" class="btn btn-primary">Post</button>
+    </form>
+  </div>
+
+  <!-- Posts -->
+  <div class="posts">
+    {% if posts %} {% for post in posts %}
+    <div class="card post">
+      <div class="meta"><strong>{{ post[1] }}</strong> • {{ post[3] }}</div>
+      <div class="content">{{ post[2] }}</div>
+
+      <div class="content">{{ post.content }}</div>
+    </div>
+    {% endfor %} {% else %}
+    <p class="muted">No posts yet — be the first one to share something!</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

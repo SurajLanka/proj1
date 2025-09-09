@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{% block title %}Instasnap{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      /* Reset + Base */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Segoe UI", Roboto, system-ui, sans-serif;
+        background: linear-gradient(135deg, #0f0f10, #1c1c1f);
+        color: #eaeaea;
+        line-height: 1.6;
+      }
+
+      /* Header */
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 20px;
+        background: rgba(20, 20, 25, 0.9);
+        border-bottom: 1px solid #2d2d32;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(12px);
+      }
+      header a {
+        text-decoration: none;
+        font-weight: 600;
+        color: #fff;
+        font-size: 1.25rem;
+      }
+      header a:hover {
+        color: #8ab4ff;
+      }
+      .nav a {
+        margin-left: 18px;
+        font-size: 0.95rem;
+        transition: color 0.2s;
+      }
+      .nav a:hover {
+        color: #7c5cff;
+      }
+      .muted {
+        color: #bbb;
+        margin-right: 8px;
+      }
+
+      /* Container */
+      .container {
+        max-width: 900px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+
+      /* Card */
+      .card {
+        background: #18191b;
+        border: 1px solid #2a2a30;
+        border-radius: 14px;
+        padding: 18px;
+        margin: 16px 0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+      }
+
+      /* Inputs */
+      input,
+      textarea {
+        width: 100%;
+        padding: 12px;
+        border-radius: 10px;
+        border: 1px solid #33333a;
+        background: #111114;
+        color: #e8e8ea;
+        margin: 8px 0;
+        transition: border 0.2s, box-shadow 0.2s;
+      }
+      input:focus,
+      textarea:focus {
+        border-color: #7c5cff;
+        outline: none;
+        box-shadow: 0 0 6px rgba(124, 92, 255, 0.6);
+      }
+
+      /* Buttons */
+      button {
+        padding: 12px 18px;
+        border: 0;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #7c5cff, #5d3bff);
+        color: white;
+        cursor: pointer;
+        font-weight: 600;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 14px rgba(124, 92, 255, 0.4);
+      }
+
+      /* Stories */
+      .stories {
+        display: flex;
+        overflow-x: auto;
+        gap: 14px;
+        padding: 10px 4px;
+        scrollbar-width: thin;
+        scrollbar-color: #444 #111;
+      }
+      .stories::-webkit-scrollbar {
+        height: 6px;
+      }
+      .stories::-webkit-scrollbar-thumb {
+        background: #444;
+        border-radius: 4px;
+      }
+      .story {
+        min-width: 120px;
+        background: #101012;
+        border: 1px solid #2c2c32;
+        border-radius: 14px;
+        padding: 10px;
+        text-align: center;
+        transition: transform 0.2s;
+      }
+      .story:hover {
+        transform: scale(1.05);
+      }
+      .story img,
+      .story video {
+        width: 100%;
+        border-radius: 10px;
+        margin-bottom: 6px;
+      }
+
+      /* Media */
+      .media {
+        width: 100%;
+        border-radius: 12px;
+        margin-top: 12px;
+        background: black;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      }
+
+      /* Flash messages */
+      .flash {
+        background: linear-gradient(135deg, #2c2c32, #1c1c20);
+        padding: 12px;
+        border-radius: 8px;
+        margin-bottom: 14px;
+        color: #ffd369;
+        font-weight: 500;
+      }
+    </style>
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <header>
+      <div>
+        <a href="{{ url_for('home') }}"><b>Instasnap</b></a>
+      </div>
+      <nav class="nav">
+        {% if session.get('user_id') %}
+        <span class="muted">Hi, {{ session.get('username') }}</span>
+        <a href="{{ url_for('feed') }}">Feed</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+        <a href="{{ url_for('login') }}">Login</a>
+        <a href="{{ url_for('signup') }}">Signup</a>
+        {% endif %}
+      </nav>
+    </header>
+
+    <div class="container">
+      {% with messages = get_flashed_messages() %} {% if messages %}
+      <div class="flash">
+        {% for m in messages %}
+        <div>{{ m }}</div>
+        {% endfor %}
+      </div>
+      {% endif %} {% endwith %} {% block content %}{% endblock %}
+    </div>
+  </body>
+</html>
