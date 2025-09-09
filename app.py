@@ -34,13 +34,11 @@ try:
 except Exception:
     USE_CLOUDINARY = False
 
-
 # ---------- DB Helpers ----------
 def get_db():
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     return conn
-
 
 def login_required(fn):
     @wraps(fn)
@@ -50,14 +48,11 @@ def login_required(fn):
         return fn(*args, **kwargs)
     return wrapper
 
-
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTS
 
-
 def detect_media_type(mimetype: str) -> str:
     return "video" if mimetype and mimetype.startswith("video/") else "image"
-
 
 def upload_media(file_storage):
     """
@@ -86,16 +81,14 @@ def upload_media(file_storage):
         file_storage.save(path)
         return f"/static/uploads/{fname}", media_type
 
-
 # ---------- Routes ----------
 @app.route("/")
 def home():
     return render_template(
         "home.html",
         user_id=session.get("user_id"),
-        username=session.get("username")
+        username=session.get("username") or "Anonymous"  # fallback
     )
-
 
 # -------- Auth --------
 @app.route("/signup", methods=["GET", "POST"])
@@ -127,7 +120,6 @@ def signup():
 
     return render_template("signup.html")
 
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -140,7 +132,7 @@ def login():
 
         if row and check_password_hash(row["password_hash"], password):
             session["user_id"] = row["id"]
-            session["username"] = row["username"]
+            session["username"] = row["username"] or "Anonymous"  # fallback
             return redirect(url_for("feed"))
 
         flash("Invalid credentials.")
@@ -148,13 +140,11 @@ def login():
 
     return render_template("login.html")
 
-
 @app.route("/logout")
 @login_required
 def logout():
     session.clear()
     return redirect(url_for("home"))
-
 
 # -------- Feed & Posts --------
 @app.route("/feed", methods=["GET", "POST"])
@@ -183,28 +173,28 @@ def feed():
 
     conn = get_db()
     posts = conn.execute("""
-        SELECT p.id, p.caption, p.media_url, p.media_type, p.created_at, u.username
+        SELECT p.id, p.caption, p.media_url, p.media_type, p.created_at, 
+               COALESCE(u.username, 'Anonymous') as username
         FROM posts p
         JOIN users u ON u.id = p.user_id
         ORDER BY p.created_at DESC
     """).fetchall()
 
     stories = conn.execute("""
-        SELECT s.id, s.media_url, s.media_type, s.created_at, s.expires_at, u.username
+        SELECT s.id, s.media_url, s.media_type, s.created_at, s.expires_at, 
+               COALESCE(u.username, 'Anonymous') as username
         FROM stories s
         JOIN users u ON u.id = s.user_id
         WHERE s.expires_at > CURRENT_TIMESTAMP
         ORDER BY s.created_at DESC
     """).fetchall()
-
     conn.close()
     return render_template(
         "feed.html",
         posts=posts,
         stories=stories,
-        username=session.get("username")
+        username=session.get("username") or "Anonymous"  # fallback
     )
-
 
 # -------- Stories --------
 @app.route("/stories", methods=["POST"])
@@ -232,7 +222,6 @@ def add_story():
     conn.close()
     return redirect(url_for("feed"))
 
-
 # -------- Profile --------
 @app.route("/u/<username>")
 def profile(username):
@@ -243,7 +232,7 @@ def profile(username):
     ).fetchone()
 
     posts = []
-    if u:
+    if u:   
         posts = conn.execute("""
             SELECT id, caption, media_url, media_type, created_at
             FROM posts WHERE user_id=? ORDER BY created_at DESC
@@ -253,7 +242,7 @@ def profile(username):
     if not u:
         return "User not found", 404
 
-    return render_template("feed.html", posts=posts, stories=[], username=username)
+    return render_template("feed.html", posts=posts, stories=[], username=username or "Anonymous")
 
 # ---------- Run ----------
 if __name__ == "__main__":

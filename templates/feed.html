@@ -6,32 +6,63 @@ block content %}
   <!-- Post Form -->
   <div class="card create-post">
     <h2 class="section-title">Create a Post</h2>
-    <form action="{{ url_for('feed') }}" method="POST">
-      <input
-        type="text"
-        name="author"
-        placeholder="Your name (optional)"
-        class="input"
-      />
+    <form
+      action="{{ url_for('feed') }}"
+      method="POST"
+      enctype="multipart/form-data"
+    >
       <textarea
-        name="content"
+        name="caption"
         rows="3"
         placeholder="What's on your mind?"
         required
         class="input"
       ></textarea>
+      <input type="file" name="media" class="input" />
       <button type="submit" class="btn btn-primary">Post</button>
     </form>
+  </div>
+
+  <!-- Stories -->
+  <div class="stories">
+    {% if stories %} {% for story in stories %}
+    <div class="card story">
+      <div class="meta">
+        <strong>{{ story.username or "Anonymous" }}</strong> • {{
+        story.created_at }}
+      </div>
+      {% if story.media_type == "image" %}
+      <img src="{{ story.media_url }}" alt="Story media" class="story-media" />
+      {% elif story.media_type == "video" %}
+      <video controls class="story-media">
+        <source src="{{ story.media_url }}" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+      {% endif %}
+    </div>
+    {% endfor %} {% else %}
+    <p class="muted">No stories yet.</p>
+    {% endif %}
   </div>
 
   <!-- Posts -->
   <div class="posts">
     {% if posts %} {% for post in posts %}
     <div class="card post">
-      <div class="meta"><strong>{{ post[1] }}</strong> • {{ post[3] }}</div>
-      <div class="content">{{ post[2] }}</div>
+      <div class="meta">
+        <strong>{{ post.username or "Anonymous" }}</strong> • {{ post.created_at
+        }}
+      </div>
+      <div class="content">{{ post.caption }}</div>
 
-      <div class="content">{{ post.content }}</div>
+      {% if post.media_url %} {% if post.media_type == "image" %}
+      <img src="{{ post.media_url }}" alt="Post media" class="post-media" />
+      {% elif post.media_type == "video" %}
+      <video controls class="post-media">
+        <source src="{{ post.media_url }}" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+      {% endif %} {% endif %}
     </div>
     {% endfor %} {% else %}
     <p class="muted">No posts yet — be the first one to share something!</p>
