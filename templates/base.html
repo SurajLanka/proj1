@@ -96,7 +96,7 @@
 
       /* Buttons */
       button {
-        padding: 12px 18px;
+        padding: 10px 16px;
         border: 0;
         border-radius: 12px;
         background: linear-gradient(135deg, #7c5cff, #5d3bff);
@@ -162,6 +162,37 @@
         margin-bottom: 14px;
         color: #ffd369;
         font-weight: 500;
+      }
+
+      /* Likes & Comments */
+      .post-actions {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 10px;
+      }
+      .like-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: #eaeaea;
+        font-size: 1rem;
+      }
+      .like-btn.liked {
+        color: #ff4f81;
+        font-weight: bold;
+      }
+      .comments {
+        margin-top: 12px;
+        border-top: 1px solid #333;
+        padding-top: 8px;
+      }
+      .comment {
+        font-size: 0.9rem;
+        margin-bottom: 6px;
+      }
+      .comment strong {
+        color: #8ab4ff;
       }
     </style>
     {% block head %}{% endblock %}

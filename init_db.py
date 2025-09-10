@@ -20,8 +20,6 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
-
-        # Index for fast login lookups
         cur.execute("CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);")
 
         # ---------- Posts ----------
@@ -36,7 +34,6 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
         """)
-
         cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC);")
 
@@ -52,9 +49,37 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
         """)
-
         cur.execute("CREATE INDEX IF NOT EXISTS idx_stories_user_id ON stories(user_id);")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_stories_expires_at ON stories(expires_at);")
+
+        # ---------- Likes ----------
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS likes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_likes_post_id ON likes(post_id);")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_likes_user_id ON likes(user_id);")
+
+        # ---------- Comments ----------
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            post_id INTEGER NOT NULL,
+            user_id INTEGER NOT NULL,
+            content TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);")
 
         conn.commit()
         print(f"✅ Database ready: {DB}")

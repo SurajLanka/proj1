@@ -1,6 +1,6 @@
 import os, uuid, datetime, sqlite3
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -87,7 +87,7 @@ def home():
     return render_template(
         "home.html",
         user_id=session.get("user_id"),
-        username=session.get("username") or "Anonymous"  # fallback
+        username=session.get("username") or "Anonymous"
     )
 
 # -------- Auth --------
@@ -132,7 +132,7 @@ def login():
 
         if row and check_password_hash(row["password_hash"], password):
             session["user_id"] = row["id"]
-            session["username"] = row["username"] or "Anonymous"  # fallback
+            session["username"] = row["username"] or "Anonymous"
             return redirect(url_for("feed"))
 
         flash("Invalid credentials.")
@@ -174,11 +174,14 @@ def feed():
     conn = get_db()
     posts = conn.execute("""
         SELECT p.id, p.caption, p.media_url, p.media_type, p.created_at, 
-               COALESCE(u.username, 'Anonymous') as username
+               COALESCE(u.username, 'Anonymous') as username,
+               (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
+               (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
+               EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ?) as liked_by_me
         FROM posts p
         JOIN users u ON u.id = p.user_id
         ORDER BY p.created_at DESC
-    """).fetchall()
+    """, (session["user_id"],)).fetchall()
 
     stories = conn.execute("""
         SELECT s.id, s.media_url, s.media_type, s.created_at, s.expires_at, 
@@ -193,8 +196,73 @@ def feed():
         "feed.html",
         posts=posts,
         stories=stories,
-        username=session.get("username") or "Anonymous"  # fallback
+        username=session.get("username") or "Anonymous"
     )
+
+# -------- Likes --------
+@app.route("/post/<int:post_id>/like", methods=["POST"])
+@login_required
+def toggle_like(post_id):
+    conn = get_db()
+    cur = conn.cursor()
+
+    existing = cur.execute(
+        "SELECT id FROM likes WHERE post_id=? AND user_id=?", 
+        (post_id, session["user_id"])
+    ).fetchone()
+
+    if existing:
+        cur.execute("DELETE FROM likes WHERE id=?", (existing["id"],))
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "unliked"})
+    else:
+        cur.execute(
+            "INSERT INTO likes (post_id, user_id, created_at) VALUES (?,?,CURRENT_TIMESTAMP)",
+            (post_id, session["user_id"])
+        )
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "liked"})
+
+# -------- Comments --------
+@app.route("/post/<int:post_id>/comment", methods=["POST"])
+@login_required
+def add_comment(post_id):
+    content = request.form.get("content", "").strip()
+    if not content:
+        return jsonify({"error": "Empty comment"}), 400
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO comments (post_id, user_id, content, created_at) VALUES (?,?,?,CURRENT_TIMESTAMP)",
+        (post_id, session["user_id"], content)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({
+        "status": "ok",
+        "username": session["username"],
+        "content": content
+    })
+
+@app.route("/post/<int:post_id>/comments")
+@login_required
+def get_comments(post_id):
+    """Fetch all comments for a post"""
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT c.id, c.content, c.created_at, u.username
+        FROM comments c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.post_id=?
+        ORDER BY c.created_at ASC
+    """, (post_id,)).fetchall()
+    conn.close()
+
+    comments = [dict(r) for r in rows]
+    return jsonify(comments)
 
 # -------- Stories --------
 @app.route("/stories", methods=["POST"])
