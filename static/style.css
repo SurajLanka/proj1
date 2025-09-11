@@ -19,3 +19,60 @@ button {
 button:hover {
     background: #0056b3;
 }
+
+.btn-delete {
+  background: #dc3545;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background 0.2s ease-in-out;
+}
+
+.btn-delete:hover {
+  background: #b52a37;
+}
+
+.btn-delete:active {
+  transform: scale(0.95);
+}
+
+.comment {
+  padding: 4px 8px;
+  margin: 2px 0;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 0.9em;
+}
+.btn-show-more {
+  background: none;
+  border: none;
+  color: #007bff;
+  cursor: pointer;
+  font-size: 0.85em;
+  margin-top: 5px;
+}
+.btn-show-more:hover {
+  text-decoration: underline;
+}
+
+<style>
+  .comment {
+    margin: 4px 0;
+    font-size: 0.9em;
+  }
+  .btn-show-more {
+    background: none;
+    border: none;
+    color: #007bff;
+    cursor: pointer;
+    font-size: 0.85em;
+    margin-top: 5px;
+  }
+  .btn-show-more:hover {
+    text-decoration: underline;
+  }
+</style>
+

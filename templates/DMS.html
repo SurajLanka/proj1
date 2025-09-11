@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Direct Messages - Instasnap</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body {
+        font-family: "Segoe UI", Roboto, system-ui, sans-serif;
+        background: white;
+        color: #eaeaea;
+        margin: 0;
+        padding: 0;
+      }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 20px;
+        background: rgba(20, 20, 25, 0.9);
+        border-bottom: 1px solid #2d2d32;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(12px);
+      }
+      header a {
+        text-decoration: none;
+        font-weight: 600;
+        color: #fff;
+        margin-left: 16px;
+      }
+      header a:hover {
+        color: #7c5cff;
+      }
+      .container {
+        max-width: 600px;
+        margin: 24px auto;
+        padding: 0 16px;
+      }
+      h1 {
+        text-align: center;
+        margin-bottom: 24px;
+        font-size: 1.8rem;
+      }
+      .card {
+        background: #18191b;
+        border: 1px solid #2a2a30;
+        border-radius: 14px;
+        padding: 18px;
+        margin: 12px 0;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+      }
+      .card a {
+        color: #eaeaea;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .card a:hover {
+        color: #7c5cff;
+      }
+      .back-link {
+        display: block;
+        text-align: center;
+        margin-top: 20px;
+        color: #bbb;
+        text-decoration: none;
+      }
+      .back-link:hover {
+        color: #7c5cff;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <a href="{{ url_for('home') }}"><b>Instasnap</b></a>
+      </div>
+      <nav>
+        <a href="{{ url_for('feed') }}">Feed</a>
+        <a href="{{ url_for('dms') }}">DM</a>
+        <a href="{{ url_for('logout') }}">Logout</a>
+      </nav>
+    </header>
+
+    <div class="container">
+      <h1>Your Conversations</h1>
+      {% if conversations %} {% for user in conversations %}
+      <div class="card">
+        <a href="{{ url_for('messages', username=user.username) }}"
+          >{{ user.username }}</a
+        >
+      </div>
+      {% endfor %} {% else %}
+      <div class="card">
+        <p>No conversations yet. Start messaging!</p>
+      </div>
+      {% endif %}
+      <a href="{{ url_for('feed') }}" class="back-link">← Back to Feed</a>
+    </div>
+  </body>
+</html>

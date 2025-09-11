@@ -1,0 +1,55 @@
+{% extends "base.html" %} {% block title %}Chat with {{ receiver.username }}{%
+endblock %} {% block content %}
+<div class="chat-container">
+  <h2>💬 Chat with {{ receiver.username }}</h2>
+
+  <div class="chat-box">
+    {% for msg in chat %}
+    <div
+      class="chat-message {% if msg.sender_id == session['user_id'] %}me{% else %}them{% endif %}"
+    >
+      <b>{{ msg.sender_name }}:</b> {{ msg.content }} {% if msg.media_url %} {%
+      if msg.media_url.endswith(".mp4") or msg.media_url.endswith(".mov") %}
+      <video controls src="{{ msg.media_url }}" width="200"></video>
+      {% else %}
+      <img src="{{ msg.media_url }}" width="200" />
+      {% endif %} {% endif %}
+      <small>{{ msg.created_at }}</small>
+    </div>
+    {% endfor %}
+  </div>
+
+  <form method="post" enctype="multipart/form-data">
+    <textarea name="content" placeholder="Type a message..."></textarea>
+    <input type="file" name="media" />
+    <button type="submit">Send</button>
+  </form>
+</div>
+
+<style>
+  .chat-container {
+    max-width: 600px;
+    margin: auto;
+  }
+  .chat-box {
+    border: 1px solid #ccc;
+    padding: 10px;
+    height: 400px;
+    overflow-y: scroll;
+    margin-bottom: 15px;
+  }
+  .chat-message {
+    margin: 8px 0;
+    padding: 6px;
+    border-radius: 8px;
+  }
+  .chat-message.me {
+    background: green;
+    text-align: right;
+  }
+  .chat-message.them {
+    background: white;
+    text-align: left;
+  }
+</style>
+{% endblock %}

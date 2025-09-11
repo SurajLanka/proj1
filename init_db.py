@@ -81,6 +81,24 @@ def init_db():
         cur.execute("CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);")
 
+        # ---------- Messages ----------
+        cur.execute("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            sender_id INTEGER NOT NULL,
+            receiver_id INTEGER NOT NULL,
+            content TEXT,
+            media_url TEXT,
+            media_type TEXT CHECK(media_type IN ('image','video','file')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """)
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id);")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at DESC);")
+
         conn.commit()
         print(f"✅ Database ready: {DB}")
 

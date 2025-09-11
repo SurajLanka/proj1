@@ -90,6 +90,23 @@ def home():
         username=session.get("username") or "Anonymous"
     )
 
+@app.route("/dms")
+@login_required
+def dms():
+    conn = get_db()
+    user_id = session["user_id"]
+    # Get all distinct users who you have messages with
+
+    conversations = conn.execute("""
+        SELECT DISTINCT u.id, u.username
+        FROM users u
+        JOIN messages m ON (u.id = m.sender_id OR u.id = m.receiver_id)
+        WHERE (m.sender_id = ? OR m.receiver_id = ?) AND u.id != ?
+        """, (user_id, user_id, user_id)).fetchall()
+
+    conn.close()
+    return render_template("dms.html", conversations=conversations, username=session.get("username"))
+
 # -------- Auth --------
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
@@ -172,16 +189,32 @@ def feed():
         return redirect(url_for("feed"))
 
     conn = get_db()
-    posts = conn.execute("""
-        SELECT p.id, p.caption, p.media_url, p.media_type, p.created_at, 
-               COALESCE(u.username, 'Anonymous') as username,
-               (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
-               (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
-               EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ?) as liked_by_me
-        FROM posts p
-        JOIN users u ON u.id = p.user_id
-        ORDER BY p.created_at DESC
-    """, (session["user_id"],)).fetchall()
+    rows = conn.execute("""
+    SELECT p.id, p.user_id, p.caption, p.media_url, p.media_type, p.created_at, 
+           COALESCE(u.username, 'Anonymous') as username,
+           (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
+           (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
+           EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ?) as liked_by_me
+    FROM posts p
+    JOIN users u ON u.id = p.user_id
+    ORDER BY p.created_at DESC
+""", (session["user_id"],)).fetchall()
+
+    # convert rows to mutable dicts and attach the latest 3 comments
+    posts = []
+    for r in rows:
+        post = dict(r)
+        # fetch latest 3 comments (oldest-first within that slice)
+        comment_rows = conn.execute("""
+            SELECT c.id, c.content, c.created_at, COALESCE(u.username, 'Anonymous') as username
+            FROM comments c
+            JOIN users u ON u.id = c.user_id
+            WHERE c.post_id = ?
+            ORDER BY c.created_at ASC
+            LIMIT 3
+        """, (post["id"],)).fetchall()
+        post["comments"] = [dict(c) for c in comment_rows]
+        posts.append(post)
 
     stories = conn.execute("""
         SELECT s.id, s.media_url, s.media_type, s.created_at, s.expires_at, 
@@ -196,8 +229,43 @@ def feed():
         "feed.html",
         posts=posts,
         stories=stories,
-        username=session.get("username") or "Anonymous"
-    )
+        username=session.get("username") or "Anonymous")
+
+# delete
+@app.route("/post/<int:post_id>/delete", methods=["POST"])
+@login_required
+def delete_post(post_id):
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # Check if post exists
+    post = cur.execute("SELECT user_id, media_url FROM posts WHERE id=?", (post_id,)).fetchone()
+    if not post:
+        conn.close()
+        flash("Post not found.")
+        return redirect(url_for("feed"))
+
+    # Check permission (only owner can delete)
+    if post["user_id"] != session["user_id"]:
+        conn.close()
+        flash("You can't delete this post.")
+        return redirect(url_for("feed"))
+
+    # Delete file if stored locally
+    if post["media_url"] and not USE_CLOUDINARY:
+        media_path = post["media_url"].lstrip("/")
+        if os.path.exists(media_path):
+            os.remove(media_path)
+
+    # Delete likes, comments, and post
+    cur.execute("DELETE FROM likes WHERE post_id=?", (post_id,))
+    cur.execute("DELETE FROM comments WHERE post_id=?", (post_id,))
+    cur.execute("DELETE FROM posts WHERE id=?", (post_id,))
+    conn.commit()
+    conn.close()
+
+    flash("Post deleted successfully.")
+    return redirect(url_for("feed"))
 
 # -------- Likes --------
 @app.route("/post/<int:post_id>/like", methods=["POST"])
@@ -213,17 +281,19 @@ def toggle_like(post_id):
 
     if existing:
         cur.execute("DELETE FROM likes WHERE id=?", (existing["id"],))
-        conn.commit()
-        conn.close()
-        return jsonify({"status": "unliked"})
+        status = "unliked"
     else:
         cur.execute(
             "INSERT INTO likes (post_id, user_id, created_at) VALUES (?,?,CURRENT_TIMESTAMP)",
             (post_id, session["user_id"])
         )
-        conn.commit()
-        conn.close()
-        return jsonify({"status": "liked"})
+        status = "liked"
+
+    conn.commit()
+    # fetch updated like count
+    like_count = cur.execute("SELECT COUNT(*) FROM likes WHERE post_id=?", (post_id,)).fetchone()[0]
+    conn.close()
+    return jsonify({"status": status, "like_count": like_count})
 
 # -------- Comments --------
 @app.route("/post/<int:post_id>/comment", methods=["POST"])
@@ -240,17 +310,31 @@ def add_comment(post_id):
         (post_id, session["user_id"], content)
     )
     conn.commit()
+    new_id = cur.lastrowid
+    # fetch newly inserted comment to return created_at too
+    new_row = cur.execute("""
+        SELECT c.id, c.content, c.created_at, COALESCE(u.username, 'Anonymous') as username
+        FROM comments c
+        JOIN users u ON u.id = c.user_id
+        WHERE c.id = ?
+    """, (new_id,)).fetchone()
     conn.close()
+    if new_row:
+        new_comment = dict(new_row)
+    else:
+        new_comment = {"id": new_id, "username": session.get("username"), "content": content}
     return jsonify({
         "status": "ok",
-        "username": session["username"],
-        "content": content
+        "comment": new_comment
     })
 
 @app.route("/post/<int:post_id>/comments")
 @login_required
 def get_comments(post_id):
-    """Fetch all comments for a post"""
+    """Fetch comments for a post (supports limit & offset for 'more'/'less')"""
+    limit = int(request.args.get("limit", 3))
+    offset = int(request.args.get("offset", 0))
+
     conn = get_db()
     rows = conn.execute("""
         SELECT c.id, c.content, c.created_at, u.username
@@ -258,11 +342,16 @@ def get_comments(post_id):
         JOIN users u ON u.id = c.user_id
         WHERE c.post_id=?
         ORDER BY c.created_at ASC
-    """, (post_id,)).fetchall()
+        LIMIT ? OFFSET ?
+    """, (post_id, limit, offset)).fetchall()
+
+    total = conn.execute(
+        "SELECT COUNT(*) FROM comments WHERE post_id=?", (post_id,)
+    ).fetchone()[0]
     conn.close()
 
     comments = [dict(r) for r in rows]
-    return jsonify(comments)
+    return jsonify({"comments": comments, "total": total})
 
 # -------- Stories --------
 @app.route("/stories", methods=["POST"])
@@ -290,26 +379,76 @@ def add_story():
     conn.close()
     return redirect(url_for("feed"))
 
+# -------- Direct Messaging --------
+@app.route("/messages/<username>", methods=["GET", "POST"])
+@login_required
+def messages(username):
+    conn = get_db()
+
+    # find receiver
+    receiver = conn.execute("SELECT id, username FROM users WHERE username=?", (username,)).fetchone()
+    if not receiver:
+        conn.close()
+        return "User not found", 404
+
+    # send message
+    if request.method == "POST":
+        content = request.form.get("content", "").strip()
+        file = request.files.get("media")
+
+        media_url = None
+        if file and file.filename:
+            media_url, _ = upload_media(file)
+
+        if content or media_url:
+            conn.execute("""
+                INSERT INTO messages (sender_id, receiver_id, content, media_url)
+                VALUES (?, ?, ?, ?)
+            """, (session["user_id"], receiver["id"], content, media_url))
+            conn.commit()
+
+        return redirect(url_for("messages", username=username))
+
+    # fetch chat history (both ways)
+    chat = conn.execute("""
+        SELECT m.*, u.username as sender_name
+        FROM messages m
+        JOIN users u ON m.sender_id = u.id
+        WHERE (m.sender_id=? AND m.receiver_id=?) OR (m.sender_id=? AND m.receiver_id=?)
+        ORDER BY m.created_at ASC
+    """, (session["user_id"], receiver["id"], receiver["id"], session["user_id"])).fetchall()
+
+    conn.close()
+    return render_template("messages.html", chat=chat, receiver=receiver, username=session.get("username"))
+
 # -------- Profile --------
 @app.route("/u/<username>")
 def profile(username):
     conn = get_db()
     u = conn.execute(
         "SELECT id, username, avatar_url, bio, created_at FROM users WHERE username=?",
-        (username,)
+        (username,),
     ).fetchone()
 
-    posts = []
-    if u:   
-        posts = conn.execute("""
-            SELECT id, caption, media_url, media_type, created_at
-            FROM posts WHERE user_id=? ORDER BY created_at DESC
-        """, (u["id"],)).fetchall()
-    conn.close()
-
     if not u:
+        conn.close()
         return "User not found", 404
 
+    posts = conn.execute("""
+        SELECT p.id, p.user_id, p.caption, p.media_url, p.media_type, p.created_at,
+               COALESCE(usr.username, 'Anonymous') as username,
+               (SELECT COUNT(*) FROM likes WHERE post_id = p.id) as like_count,
+               (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comment_count,
+               EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = ?) as liked_by_me
+        FROM posts p
+        JOIN users usr ON usr.id = p.user_id
+        WHERE p.user_id = ?
+        ORDER BY p.created_at DESC
+    """, (session.get("user_id"), u["id"])).fetchall()
+
+    conn.close()
+    # convert rows to dicts for template compatibility (if needed)
+    posts = [dict(r) for r in posts]
     return render_template("feed.html", posts=posts, stories=[], username=username or "Anonymous")
 
 # ---------- Run ----------
