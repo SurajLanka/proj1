@@ -3,6 +3,57 @@ block content %}
 <div class="feed-container">
   <h1 class="page-title">📲 Your Feed</h1>
 
+  <!-- Story Bar -->
+  <div class="story-bar">
+    <!-- Add Story Circle -->
+    <div class="story-circle add-story">
+      <form
+        action="{{ url_for('create_story') }}"
+        method="POST"
+        enctype="multipart/form-data"
+        id="storyForm"
+      >
+        <label for="storyInput">+</label>
+        <input
+          type="file"
+          id="storyInput"
+          name="media"
+          accept="image/*,video/*"
+          capture="environment"
+          style="display: none;"
+          onchange="document.getElementById('storyForm').submit();"
+        />
+      </form>
+    </div>
+
+    <!-- User Stories -->
+    {% if stories %}
+      {% for story in stories %}
+      <div class="story-circle" onclick="openStory('{{ story.media_url }}', '{{ story.media_type }}')">
+        <img src="{{ story.avatar_url or '/static/default-avatar.png' }}" alt="{{ story.username }}" />
+        <span>{{ story.username }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="muted">No stories yet.</p>
+    {% endif %}
+  </div>
+
+  <!-- Story Viewer -->
+<div id="storyViewer" class="story-viewer" style="display:none;">
+  <div class="overlay" onclick="closeStory()"></div>
+  <div class="progress-container" id="progressContainer"></div>
+  <div class="story-content">
+    <img id="storyImage" style="display:none;" />
+    <video id="storyVideo" style="display:none;" playsinline></video>
+  </div>
+</div>
+
+
+  <!-- (The rest of your Post form + Posts section remains same) -->
+
+</div>
+
   <!-- Post Form -->
   <div class="card create-post">
     <h2 class="section-title">Create a Post</h2>
@@ -51,6 +102,7 @@ block content %}
     <div class="card post" data-post-id="{{ post.id }}">
       <div class="meta">
         <strong>{{ post.username or "Anonymous" }}</strong>
+
         {% if post.username != username %}
         <!-- DM Button -->
         <a
@@ -58,6 +110,17 @@ block content %}
           class="dm-link"
           >💬 DM</a
         >
+
+        <!-- Follow/Unfollow Button -->
+        <form
+          action="{{ url_for('toggle_follow', username=post.username) }}"
+          method="POST"
+          style="display: inline"
+        >
+          <button type="submit" class="follow-btn">
+            {{ "Unfollow" if post.is_following else "Follow" }}
+          </button>
+        </form>
         {% endif %} • {{ post.created_at }}
       </div>
 
@@ -254,5 +317,96 @@ block content %}
       }
     }
   </script>
+
+  <!-- --------------------Follow & Unfollow----------------------------- -->
+
+  document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.follow-btn').forEach(btn => {
+  btn.addEventListener('click', async () => { const userId = btn.dataset.userId;
+  const response = await fetch(`/follow/${userId}`, { method: 'POST' }); const
+  data = await response.json(); // Update button text without leaving the page
+  if (data.status === "followed") { btn.textContent = "Unfollow"; } else if
+  (data.status === "unfollowed") { btn.textContent = "Follow"; } }); }); });
 </div>
+<!-- ------------------------stories-------------------- -->
+
+<script>
+  let currentStoryIndex = 0;
+  let storiesData = [];
+  let progressBars = [];
+  let storyTimer;
+
+  function openStory(url, type) {
+    // Build stories list (all from template)
+    storiesData = [
+      {% for story in stories %}
+        {url: "{{ story.media_url }}", type: "{{ story.media_type }}"},
+      {% endfor %}
+    ];
+    // Find clicked story index
+    currentStoryIndex = storiesData.findIndex(s => s.url === url);
+    document.getElementById("storyViewer").style.display = "flex";
+    startStory();
+  }
+
+  function startStory() {
+    clearTimeout(storyTimer);
+    resetProgressBars();
+
+    const story = storiesData[currentStoryIndex];
+    const img = document.getElementById("storyImage");
+    const vid = document.getElementById("storyVideo");
+
+    if (story.type === "image") {
+      img.src = story.url;
+      img.style.display = "block";
+      vid.style.display = "none";
+
+      animateProgress(5000); // 5 sec for image
+      storyTimer = setTimeout(nextStory, 5000);
+    } else {
+      vid.src = story.url;
+      vid.style.display = "block";
+      img.style.display = "none";
+      vid.play();
+
+      // When video ends → next
+      vid.onended = nextStory;
+      animateProgress(vid.duration * 1000 || 5000);
+    }
+  }
+
+  function nextStory() {
+    if (currentStoryIndex < storiesData.length - 1) {
+      currentStoryIndex++;
+      startStory();
+    } else {
+      closeStory();
+    }
+  }
+
+  function closeStory() {
+    clearTimeout(storyTimer);
+    document.getElementById("storyViewer").style.display = "none";
+    document.getElementById("storyVideo").pause();
+  }
+
+  // Progress bars
+  function resetProgressBars() {
+    const container = document.getElementById("progressContainer");
+    container.innerHTML = "";
+    progressBars = storiesData.map((_, i) => {
+      const bar = document.createElement("div");
+      bar.className = "progress-bar";
+      container.appendChild(bar);
+      return bar;
+    });
+  }
+
+  function animateProgress(duration) {
+    const bar = progressBars[currentStoryIndex];
+    bar.style.transition = `width ${duration}ms linear`;
+    bar.style.width = "100%";
+  }
+</script>
 {% endblock %}

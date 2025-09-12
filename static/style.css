@@ -1,4 +1,4 @@
-body {
+/* body {
     font-family: Arial, sans-serif;
     background: #f4f4f4;
     padding: 20px;
@@ -76,3 +76,310 @@ button:hover {
   }
 </style>
 
+.follow-btn {
+  margin-left: 8px;
+  background: #6b46c1;
+  color: #fff;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.follow-btn:hover {
+  background: #553c9a;
+}
+
+  .story-bar {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 10px 0;
+  }
+  .story-circle {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    border: 3px solid #ff006a;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    text-align: center;
+    font-size: 12px;
+    overflow: hidden;
+  }
+  .story-circle img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+  }
+  .add-story {
+    background: #eee;
+    font-size: 32px;
+    color: #333;
+    border: 2px dashed #999;
+  }
+  .story-viewer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.85);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+  }
+  .story-content img, .story-content video {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 12px;
+  }
+
+
+
+  .progress-container {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    right: 15px;
+    display: flex;
+    gap: 5px;
+    z-index: 1000;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 3px;
+    background: rgba(255,255,255,0.3);
+    width: 0;
+  }
+  .progress-bar.active {
+    background: #fff;
+  } */
+
+  /* Global Reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', Arial, sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+  color: #333;
+  padding: 20px;
+  min-height: 100vh;
+}
+
+/* Headings */
+h1, h2 {
+  color: #222;
+  margin-bottom: 15px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+/* Textarea */
+textarea {
+  width: 100%;
+  max-width: 500px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+textarea:focus {
+  border-color: #007BFF;
+  box-shadow: 0 0 6px rgba(0,123,255,0.4);
+}
+
+/* Primary Button */
+button {
+  background: linear-gradient(135deg, #007BFF, #0056b3);
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95em;
+  font-weight: 600;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+  transition: all 0.25s ease;
+}
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+}
+button:active {
+  transform: scale(0.97);
+}
+
+/* Delete Button */
+.btn-delete {
+  background: linear-gradient(135deg, #ff4b5c, #b52a37);
+  padding: 7px 14px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.btn-delete:hover {
+  background: #e63946;
+  transform: translateY(-2px);
+}
+.btn-delete:active {
+  transform: scale(0.95);
+}
+
+/* Comment Bubble */
+.comment {
+  padding: 8px 12px;
+  margin: 6px 0;
+  background: #fff;
+  border-radius: 10px;
+  font-size: 0.9em;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  transition: transform 0.15s ease;
+}
+.comment:hover {
+  transform: translateX(3px);
+}
+
+/* Show More Button */
+.btn-show-more {
+  background: none;
+  border: none;
+  color: #007bff;
+  cursor: pointer;
+  font-size: 0.85em;
+  margin-top: 5px;
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+.btn-show-more:hover {
+  text-decoration: underline;
+  color: #0056b3;
+}
+
+/* Follow Button */
+.follow-btn {
+  margin-left: 8px;
+  background: linear-gradient(135deg, #805ad5, #553c9a);
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 0.85em;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.follow-btn:hover {
+  background: #6b46c1;
+  transform: scale(1.05);
+}
+.follow-btn:active {
+  transform: scale(0.95);
+}
+
+/* Stories Bar */
+.story-bar {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 12px 0;
+  scrollbar-width: none;
+}
+.story-bar::-webkit-scrollbar {
+  display: none;
+}
+.story-circle {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  background: linear-gradient(135deg, #ff006a, #ff8a00);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  text-align: center;
+  font-size: 12px;
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.story-circle img {
+  width: 96%;
+  height: 96%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+}
+.story-circle:hover {
+  transform: scale(1.07);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+.add-story {
+  background: #f1f1f1;
+  font-size: 28px;
+  color: #555;
+  border: 2px dashed #bbb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Story Viewer */
+.story-viewer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.9);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.story-content img, 
+.story-content video {
+  max-width: 85%;
+  max-height: 85%;
+  border-radius: 16px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* Progress Bar */
+.progress-container {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  right: 15px;
+  display: flex;
+  gap: 6px;
+  z-index: 1000;
+}
+.progress-bar {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-bar.active {
+  background: linear-gradient(90deg, #ff8a00, #ff006a);
+  animation: progressAnim 5s linear forwards;
+}
+
+/* Animations */
+@keyframes progressAnim {
+  from { width: 0; }
+  to { width: 100%; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}

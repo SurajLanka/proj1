@@ -1,8 +1,11 @@
+
 import os, uuid, datetime, sqlite3
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from datetime import datetime, timedelta
+
 
 # ---------- Optional: Cloudinary ----------
 # from dotenv import load_dotenv
@@ -162,7 +165,34 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("home"))
+# -------- FOLLOW FEATURE ADDED --------
+@app.route("/follow/<username>", methods=["POST"])
+@login_required
+def toggle_follow(username):
+    conn = get_db()
+    cur = conn.cursor()
+    target = cur.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
+    if not target:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+    target_id = target["id"]
+    if target_id == session["user_id"]:
+        conn.close()
+        return jsonify({"error": "Cannot follow yourself"}), 400
 
+    existing = cur.execute("""
+        SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?
+    """, (session["user_id"], target_id)).fetchone()
+
+    if existing:
+        cur.execute("DELETE FROM follows WHERE follower_id=? AND followed_id=?", (session["user_id"], target_id))
+        status = "unfollowed"
+    else:
+        cur.execute("INSERT INTO follows (follower_id, followed_id) VALUES (?,?)", (session["user_id"], target_id))
+        status = "followed"
+    conn.commit()
+    conn.close()
+    return jsonify({"status": status})
 # -------- Feed & Posts --------
 @app.route("/feed", methods=["GET", "POST"])
 @login_required
@@ -290,7 +320,9 @@ def toggle_like(post_id):
         status = "liked"
 
     conn.commit()
-    # fetch updated like count
+    # fetch updated like  
+    
+    count
     like_count = cur.execute("SELECT COUNT(*) FROM likes WHERE post_id=?", (post_id,)).fetchone()[0]
     conn.close()
     return jsonify({"status": status, "like_count": like_count})
@@ -451,9 +483,147 @@ def profile(username):
     posts = [dict(r) for r in posts]
     return render_template("feed.html", posts=posts, stories=[], username=username or "Anonymous")
 
+    # ---------- Story Routes ----------
+
+@app.route("/create_story", methods=["POST"])
+def create_story():
+    if "user_id" not in session:
+        flash("You need to log in to post a story.")
+        return redirect(url_for("login"))
+
+    file = request.files.get("media")
+    if not file:
+        flash("Please upload a photo/video for your story.")
+        return redirect(url_for("feed"))
+
+    # Save media file
+    media_filename = f"story_{session['user_id']}_{datetime.now().timestamp()}_{file.filename}"
+    media_path = os.path.join("static", "uploads", media_filename)
+    file.save(media_path)
+    media_url = "/" + media_path.replace("\\", "/")
+
+    # Determine media type
+    if file.mimetype.startswith("image"):
+        media_type = "image"
+    elif file.mimetype.startswith("video"):
+        media_type = "video"
+    else:
+        flash("Only images and videos are allowed.")
+        return redirect(url_for("feed"))
+
+    expires_at = datetime.now() + timedelta(hours=24)
+
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO stories (user_id, media_url, media_type, created_at, expires_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP, ?)
+    """, (session["user_id"], media_url, media_type, expires_at))
+    conn.commit()
+    conn.close()
+
+    flash("✅ Story posted! It will disappear after 24 hours.")
+    return redirect(url_for("feed"))
+
+
+@app.route("/stories")
+def stories():
+    """Fetch all active (non-expired) stories"""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        DELETE FROM stories WHERE expires_at < CURRENT_TIMESTAMP
+    """)  # cleanup expired stories
+    conn.commit()
+
+    cur.execute("""
+        SELECT stories.*, users.username, users.avatar_url
+        FROM stories
+        JOIN users ON stories.user_id = users.id
+        WHERE stories.expires_at > CURRENT_TIMESTAMP
+        ORDER BY stories.created_at DESC
+    """)
+    stories = cur.fetchall()
+    conn.close()
+
+    return jsonify([dict(s) for s in stories])
+
+# -----------------------------story reactions---------------------
+
+# Allowed quick emojis (top 5). Change if you want different ones.
+TOP_EMOJIS = ["❤️", "😂", "😮", "😢", "🔥"]
+
+@app.route("/story/<int:story_id>/react", methods=["POST"])
+@login_required
+def react_to_story(story_id):
+    # Accept JSON or form data
+    data = request.get_json(silent=True) or request.form
+    rtype = (data.get("type") or data.get("reaction_type") or "").strip().lower()
+    content = (data.get("content") or "").strip()
+
+    if rtype not in ("emoji", "text"):
+        return jsonify({"error": "invalid reaction type"}), 400
+
+    if rtype == "emoji":
+        if content not in TOP_EMOJIS:
+            return jsonify({"error": "invalid emoji"}), 400
+    else:  # text
+        if not content:
+            return jsonify({"error": "empty text"}), 400
+        if len(content) > 1000:  # guard
+            return jsonify({"error": "message too long"}), 400
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    # Ensure story exists and get its owner
+    row = cur.execute("SELECT user_id FROM stories WHERE id = ?", (story_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "story not found"}), 404
+    owner_id = row["user_id"]
+
+    # Insert into story_reactions
+    cur.execute("""
+        INSERT INTO story_reactions (story_id, user_id, reaction_type, reaction_content, created_at)
+        VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    """, (story_id, session["user_id"], rtype, content))
+    
+    # If the reaction is a text reply, also create a DM (messages table)
+    if rtype == "text":
+        # Format message so owner knows it's a story reply
+        dm_text = f"Reply to your story: {content}"
+        cur.execute("""
+            INSERT INTO messages (sender_id, receiver_id, content, is_story_reply, story_id, created_at)
+            VALUES (?, ?, ?, 1, ?, CURRENT_TIMESTAMP)
+        """, (session["user_id"], owner_id, dm_text, story_id))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({"ok": True})
+
+# --------------------------story count---------------------------
+
+@app.route("/story/<int:story_id>/reactions")
+@login_required
+def get_story_reactions(story_id):
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT reaction_content, reaction_type, COUNT(*) as cnt
+        FROM story_reactions
+        WHERE story_id = ?
+        GROUP BY reaction_content, reaction_type
+        ORDER BY cnt DESC
+    """, (story_id,)).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
 # ---------- Run ----------
 if __name__ == "__main__":
     if not os.path.exists(DB):
         import init_db
         init_db.init_db()
     app.run(debug=True)
+

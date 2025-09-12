@@ -206,7 +206,7 @@
         {% if session.get('user_id') %}
         <span class="muted">Hi, {{ session.get('username') }}</span>
         <a href="{{ url_for('feed') }}">Feed</a>
-        <a href="{{ url_for('dms') }}">DM</a>
+        <a href="{{ url_for('dms') }}">💬</a>
         <a href="{{ url_for('logout') }}">Logout</a>
         {% else %}
         <a href="{{ url_for('login') }}">Login</a>
